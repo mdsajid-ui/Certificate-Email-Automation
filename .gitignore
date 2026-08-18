@@ -1,0 +1,17 @@
+# Secrets — never commit real credentials
+.env
+
+# Generated at runtime
+output/
+email_log.txt
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/
