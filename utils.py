@@ -33,18 +33,47 @@ def log_event(recipient: str, status: str, error: str = ""):
     logger.info(detail)
 
 
-def find_matching_column(columns, keyword: str):
-    """Case-insensitive / whitespace-tolerant match for a required column name."""
-    keyword_norm = keyword.lower().replace(" ", "")
-    for col in columns:
-        if str(col).lower().replace(" ", "") == keyword_norm:
+# Keywords used to recognize each required field, in priority order.
+# Real-world files use all sorts of headers (STU_NAME, MOBILE-1, EMAIL ID, etc.)
+# so we match by keyword/substring rather than requiring an exact name.
+COLUMN_KEYWORDS = {
+    "Name": ["name"],
+    "Mobile Number": ["mobile", "phone", "contact", "whatsapp", "cell"],
+    "Email ID": ["email", "e-mail", "mail"],
+}
+
+
+def _normalize(s: str) -> str:
+    """Lowercase and strip everything except letters/digits for loose matching."""
+    return "".join(ch for ch in str(s).lower() if ch.isalnum())
+
+
+def find_matching_column(columns, required: str):
+    """
+    Find the column that best matches a required field by keyword.
+    Tries, in order: exact normalized match, then substring/keyword match.
+    """
+    keywords = COLUMN_KEYWORDS.get(required, [required.lower()])
+    norm_cols = {col: _normalize(col) for col in columns}
+
+    # 1) Exact normalized match against the required field name itself
+    req_norm = _normalize(required)
+    for col, norm in norm_cols.items():
+        if norm == req_norm:
             return col
+
+    # 2) Substring match against any recognized keyword for this field
+    for col, norm in norm_cols.items():
+        if any(kw.replace(" ", "").replace("-", "") in norm for kw in keywords):
+            return col
+
     return None
 
 
 def validate_excel_columns(df: pd.DataFrame):
     """
-    Confirms Name, Mobile Number, and Email ID columns exist (flexibly matched).
+    Confirms Name, Mobile Number, and Email ID columns exist (flexibly matched
+    by keyword, so headers like STU_NAME / MOBILE-1 / EMAIL ID are recognized).
     Returns (is_valid, column_map, missing_columns).
     """
     column_map = {}
