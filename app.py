@@ -47,6 +47,159 @@ st.set_page_config(
     layout="wide",
 )
 
+
+# ---------------------------------------------------------------------------
+# Login gate — must run before any other UI renders
+# ---------------------------------------------------------------------------
+def login():
+    st.markdown(
+        """
+        <style>
+        [data-testid="stHeader"] { background: transparent; }
+        [data-testid="stToolbar"] { display: none; }
+        #MainMenu { visibility: hidden; }
+        footer { visibility: hidden; }
+
+        .stApp {
+            background:
+                radial-gradient(circle at 8% 82%, rgba(0, 183, 255, .24), transparent 27%),
+                radial-gradient(circle at 92% 78%, rgba(210, 40, 255, .23), transparent 30%),
+                radial-gradient(circle at 50% 0%, rgba(65, 93, 255, .16), transparent 38%),
+                linear-gradient(135deg, #03143f 0%, #071b4f 45%, #13052f 100%);
+            min-height: 100vh;
+        }
+        .block-container { max-width: 1120px !important; padding-top: 2.2rem !important; padding-bottom: 1rem !important; }
+        .login-top { display: flex; justify-content: flex-end; margin-bottom: 8px; }
+        .login-top-badge {
+            display: inline-flex; align-items: center; gap: 9px; padding: 9px 16px;
+            border: 1px solid rgba(255,255,255,.18); border-radius: 999px; color: #f5f7ff;
+            background: rgba(255,255,255,.06); font-size: 14px; backdrop-filter: blur(12px);
+        }
+        .brand-wrap { text-align: center; margin: 5px auto 28px; }
+        .dv-logo {
+            width: 72px; height: 72px; margin: 0 auto 18px; border-radius: 17px;
+            display: flex; align-items: center; justify-content: center; color: white;
+            font-size: 31px; font-weight: 800; letter-spacing: -2px;
+            background: linear-gradient(145deg, #102d6d, #071a48);
+            border: 1px solid rgba(255,255,255,.22);
+            box-shadow: 0 16px 40px rgba(0,0,0,.30), inset 0 1px 0 rgba(255,255,255,.12);
+            position: relative;
+        }
+        .dv-logo:after {
+            content: ""; position: absolute; right: -1px; top: -1px; width: 25px; height: 25px;
+            border-radius: 0 17px 0 17px; background: #ea1313;
+        }
+        .brand-title { color: #ffffff; font-size: clamp(30px, 4vw, 48px); line-height: 1.08; font-weight: 800; letter-spacing: -1.6px; margin: 0; }
+        .brand-subtitle { color: rgba(232,238,255,.74); font-size: 16px; margin-top: 10px; }
+        .login-card {
+            max-width: 665px; margin: 0 auto; padding: 34px 36px 30px; border-radius: 22px;
+            background: linear-gradient(145deg, rgba(255,255,255,.105), rgba(255,255,255,.045));
+            border: 1px solid rgba(255,255,255,.18);
+            box-shadow: 0 28px 80px rgba(0,0,0,.38), inset 0 1px 0 rgba(255,255,255,.08);
+            backdrop-filter: blur(22px);
+        }
+        .lock-circle {
+            width: 76px; height: 76px; margin: 0 auto 17px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center; font-size: 32px;
+            background: linear-gradient(135deg, #126cff, #a832ff);
+            box-shadow: 0 0 0 10px rgba(62,102,255,.08), 0 12px 35px rgba(39,75,255,.38);
+        }
+        .welcome-title { text-align: center; color: #ffffff; font-size: 28px; font-weight: 750; margin: 0; }
+        .welcome-text { text-align: center; color: rgba(232,238,255,.72); margin: 7px 0 25px; font-size: 15px; }
+        .stTextInput > label { color: #f4f7ff !important; font-weight: 600 !important; font-size: 14px !important; }
+        .stTextInput > div > div {
+            background: rgba(4,15,48,.42) !important; border: 1px solid rgba(255,255,255,.17) !important;
+            border-radius: 12px !important; min-height: 54px !important; transition: .2s ease;
+        }
+        .stTextInput > div > div:focus-within { border-color: #3b8cff !important; box-shadow: 0 0 0 3px rgba(59,140,255,.14) !important; }
+        .stTextInput input { color: #ffffff !important; font-size: 15px !important; }
+        .stTextInput input::placeholder { color: rgba(255,255,255,.40) !important; }
+        .login-actions { display: flex; justify-content: space-between; align-items: center; color: rgba(238,243,255,.74); font-size: 13px; margin: 2px 2px 18px; }
+        .remember { display: flex; gap: 7px; align-items: center; }
+        .secure-line { display: flex; align-items: center; gap: 14px; color: rgba(236,242,255,.82); margin-top: 24px; }
+        .secure-line:before, .secure-line:after { content: ""; height: 1px; flex: 1; background: rgba(255,255,255,.15); }
+        .secure-content { display: flex; align-items: center; gap: 12px; margin-top: 20px; padding: 13px 14px; border-radius: 12px; background: rgba(4,19,55,.28); color: rgba(235,241,255,.72); font-size: 13px; }
+        .secure-icon { font-size: 25px; }
+        .login-footer { text-align: center; color: rgba(225,233,255,.52); font-size: 12px; margin: 26px auto 5px; }
+        .help-footer { max-width: 665px; margin: 17px auto 0; padding: 15px 18px; border-top: 1px solid rgba(255,255,255,.10); display: flex; justify-content: space-between; color: rgba(230,237,255,.60); font-size: 13px; }
+        .stButton > button {
+            width: 100% !important; min-height: 54px !important; border: 0 !important; border-radius: 12px !important;
+            color: white !important; font-size: 16px !important; font-weight: 750 !important;
+            background: linear-gradient(90deg, #096dff 0%, #7140ff 55%, #a82cff 100%) !important;
+            box-shadow: 0 12px 30px rgba(62,78,255,.30) !important;
+            transition: transform .18s ease, box-shadow .18s ease !important;
+        }
+        .stButton > button:hover { transform: translateY(-1px); box-shadow: 0 16px 38px rgba(62,78,255,.42) !important; }
+        @media (max-width: 700px) {
+            .block-container { padding: 1rem !important; }
+            .login-card { padding: 25px 20px 23px; }
+            .brand-title { font-size: 31px; }
+            .help-footer { flex-direction: column; gap: 8px; text-align: center; }
+        }
+        </style>
+
+        <div class="login-top"><div class="login-top-badge">◐ &nbsp; Secure Login</div></div>
+        <div class="brand-wrap">
+            <div class="dv-logo">DV</div>
+            <div class="brand-title">Certificate Email Automation</div>
+            <div class="brand-subtitle">Automated certificate generation and email delivery</div>
+        </div>
+        <div class="login-card">
+            <div class="lock-circle">🔒</div>
+            <div class="welcome-title">Welcome Back!</div>
+            <div class="welcome-text">Please sign in to continue to your dashboard</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    username = st.text_input("Username", value="", placeholder="Enter your email address", key="login_username")
+    password = st.text_input("Password", type="password", placeholder="Enter your password", key="login_password")
+
+    st.markdown(
+        '<div class="login-actions"><span class="remember">✓ &nbsp; Keep me signed in</span>'
+        '<span>Secure access</span></div>',
+        unsafe_allow_html=True,
+    )
+
+    if st.button("🚀  Login", key="login_button"):
+        # Credentials come from Streamlit secrets / environment variables only —
+        # never hardcoded in source, since this repo is public on GitHub.
+        valid_username = os.environ.get("APP_USERNAME", "")
+        valid_password = os.environ.get("APP_PASSWORD", "")
+
+        if not valid_username or not valid_password:
+            st.error("⚠️ Login is not configured. Set APP_USERNAME and APP_PASSWORD in secrets.")
+        elif username == valid_username and password == valid_password:
+            st.session_state["logged_in"] = True
+            st.rerun()
+        else:
+            st.error("❌ Invalid username or password")
+
+    st.markdown(
+        """
+        <div class="secure-line">Secure Access</div>
+        <div class="secure-content">
+            <span class="secure-icon">🛡️</span>
+            <div>
+                <strong style="color:#eef4ff;">Your connection is protected</strong><br>
+                <span>Authorized access only · DV Analytics Certificate & Email Suite</span>
+            </div>
+        </div>
+        <div class="login-footer">© 2026 DV Analytics · Certificate &amp; Email Automation Suite</div>
+        <div class="help-footer"><span>DV Analytics</span><span>Need help? Contact your administrator</span></div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    return st.session_state.get("logged_in", False)
+
+
+if not st.session_state.get("logged_in", False):
+    login()
+    st.stop()
+
+
 NAVY = "#0B1B4D"
 NAVY_DEEP = "#060F30"
 RED = "#EF233C"
