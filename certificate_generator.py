@@ -75,20 +75,32 @@ def load_template_as_image(template_path: str) -> Image.Image:
         return Image.open(template_path).convert("RGB")
 
 
+BUNDLED_FONT_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets", "DejaVuSerif-Bold.ttf")
+
+
 def get_font(font_path: str, size: int) -> ImageFont.FreeTypeFont:
-    """Load a TTF font, falling back to PIL's default bitmap font if unavailable."""
-    try:
-        if font_path and os.path.exists(font_path):
-            return ImageFont.truetype(font_path, size)
-        # Try a couple of common system fonts as a fallback
-        for candidate in [
-            "/usr/share/fonts/truetype/dejavu/DejaVuSerif-Bold.ttf",
-            "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
-        ]:
-            if os.path.exists(candidate):
+    """
+    Load a TTF font. Tries, in order: an explicitly given font_path, the
+    font bundled with this app (assets/DejaVuSerif-Bold.ttf — always
+    present regardless of host OS), then a couple of common system font
+    paths. Only falls back to PIL's tiny fixed-size default font if all of
+    those fail, since that default silently ignores `size` and renders
+    text that's effectively invisible on a real certificate.
+    """
+    candidates = []
+    if font_path:
+        candidates.append(font_path)
+    candidates.append(BUNDLED_FONT_PATH)
+    candidates += [
+        "/usr/share/fonts/truetype/dejavu/DejaVuSerif-Bold.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+    ]
+    for candidate in candidates:
+        try:
+            if candidate and os.path.exists(candidate):
                 return ImageFont.truetype(candidate, size)
-    except Exception:
-        pass
+        except Exception:
+            continue
     return ImageFont.load_default()
 
 
