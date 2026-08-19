@@ -28,6 +28,89 @@ def sanitize_filename(name: str) -> str:
     return name or "Participant"
 
 
+def suggest_name_position(template_img: Image.Image) -> float:
+    """
+    Auto-detect the best vertical position (0.0-1.0) to draw the
+    participant's name so it doesn't collide with text already baked into
+    the certificate template (e.g. "This is to certify that ..." /
+    "has successfully participated in ..."), instead of assuming a fixed
+    50% center.
+
+    Many certificate templates already contain printed text lines. If we
+    always draw the name at a fixed 50% mark, it ends up stamped directly
+    on top of whichever line happens to sit there — which is exactly the
+    "name is not coming properly" / overlapping-text bug. To avoid that we
+    scan horizontal strips of the template within a sensible name-placement
+    zone (18%-72% down the certificate — skips the header/logo area and the
+    footer/signature area) and score each strip by how "blank" it is: a row
+    of mostly uniform background pixels scores high, a row containing dense
+    dark/printed text scores low. We return the vertical center (as a
+    fraction of image height) of the tallest sufficiently blank strip that
+    can comfortably fit the name.
+    """
+    w, h = template_img.size
+    gray = template_img.convert("L")
+
+    zone_top = int(h * 0.18)
+    zone_bottom = int(h * 0.72)
+    strip_left = int(w * 0.12)
+    strip_right = int(w * 0.88)
+
+    row_step = max(1, h // 400)  # sample every few pixels for speed on large images
+    row_scores = []  # (row_y, is_blank)
+    for y in range(zone_top, zone_bottom, row_step):
+        row = gray.crop((strip_left, y, strip_right, y + row_step))
+        stat = ImageStat.Stat(row)
+        mean = stat.mean[0]
+        stddev = stat.stddev[0] if stat.stddev else 0.0
+        # A row with real printed text has noticeably higher local contrast
+        # (dark glyph strokes against a lighter background) than an empty
+        # background row, which is why low stddev is a strong "blank" signal.
+        is_blank = stddev < 18
+        row_scores.append((y, is_blank, mean))
+
+    # Collect every run of consecutive blank rows in the zone (a template can
+    # have several: above the title, between "certify that" and the name
+    # line, between the name line and the course title, etc).
+    runs = []
+    current_run = []
+    for y, is_blank, mean in row_scores:
+        if is_blank:
+            current_run.append(y)
+        else:
+            if current_run:
+                runs.append(current_run)
+            current_run = []
+    if current_run:
+        runs.append(current_run)
+
+    min_gap_px = h * 0.05  # need at least ~5% of the certificate height of clear space
+    candidates = [r for r in runs if (r[-1] - r[0]) >= min_gap_px]
+
+    if candidates:
+        # Score each candidate blank band by size, but heavily favor ones
+        # near the vertical middle of the certificate — the tallest blank
+        # run is often empty header space above the title, not the actual
+        # name line, so length alone picks the wrong spot. Certificates
+        # consistently place the participant's name close to center, so
+        # proximity to 50% is a much stronger signal than raw run length.
+        def score(run):
+            length_pct = (run[-1] - run[0]) / h * 100
+            center_pct = ((run[0] + run[-1]) / 2) / h * 100
+            distance_from_center = abs(center_pct - 50)
+            return length_pct - 0.6 * distance_from_center
+
+        best_run = max(candidates, key=score)
+        center_y = (best_run[0] + best_run[-1]) / 2
+        return round(center_y / h, 3)
+
+    # Fallback: no sufficiently large blank band was found (e.g. a densely
+    # worded template) — fall back to a slightly-below-center position,
+    # which on most certificate layouts sits just under the "certify that"
+    # line rather than directly on top of it.
+    return 0.52
+
+
 def suggest_text_style(template_img: Image.Image, y_position_pct: float = 0.5):
     """
     Recommend a font size and text color that will actually be visible on
