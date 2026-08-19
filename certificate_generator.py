@@ -7,7 +7,7 @@ Handles rendering a participant's name onto a certificate template
 
 import os
 import re
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFont, ImageStat
 
 try:
     import fitz  # PyMuPDF - only needed if template is a PDF
@@ -22,6 +22,33 @@ def sanitize_filename(name: str) -> str:
     name = re.sub(r"[^\w\s-]", "", name)   # drop punctuation
     name = re.sub(r"\s+", "_", name)       # spaces -> underscores
     return name or "Participant"
+
+
+def suggest_text_style(template_img: Image.Image, y_position_pct: float = 0.5):
+    """
+    Recommend a font size and text color that will actually be visible on
+    this specific template, instead of a fixed default. A fixed pixel size
+    (e.g. 60px) is fine on a small template and nearly invisible on a large,
+    high-resolution one — so we scale to the template's own height. We also
+    sample the brightness of the band where the name will be drawn and pick
+    a contrasting color (dark navy on light backgrounds, white on dark ones)
+    so the name is never accidentally the same color as the background.
+    """
+    w, h = template_img.size
+    font_size = max(28, min(260, round(h * 0.07)))
+
+    band_top = max(0, int(h * y_position_pct - h * 0.06))
+    band_bottom = min(h, int(h * y_position_pct + h * 0.06))
+    band_left = int(w * 0.15)
+    band_right = int(w * 0.85)
+    if band_bottom <= band_top:
+        band_bottom = band_top + 1
+
+    region = template_img.crop((band_left, band_top, band_right, band_bottom)).convert("L")
+    avg_brightness = ImageStat.Stat(region).mean[0]  # 0 (black) - 255 (white)
+
+    text_color = (8, 8, 64) if avg_brightness > 150 else (255, 255, 255)
+    return font_size, text_color
 
 
 def load_template_as_image(template_path: str) -> Image.Image:
