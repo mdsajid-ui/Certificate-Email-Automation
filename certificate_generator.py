@@ -12,7 +12,11 @@ from PIL import Image, ImageDraw, ImageFont, ImageStat
 try:
     import fitz  # PyMuPDF - only needed if template is a PDF
     HAS_FITZ = True
-except ImportError:
+except Exception:
+    # Catch broadly, not just ImportError: on some hosting environments a
+    # missing shared library or version mismatch raises other exception
+    # types here, which was crashing the entire app on import instead of
+    # just disabling PDF-template support.
     HAS_FITZ = False
 
 
